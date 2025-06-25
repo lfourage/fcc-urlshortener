@@ -14,5 +14,15 @@
     "mongodb": "^3.0.0",
     "mongoose": "^5.6.5"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lfourage/fcc-urlshortener.git"
+  },
+  "author": "lfourage",
+  "bugs": {
+    "url": "https://github.com/lfourage/fcc-urlshortener/issues"
+  },
+  "homepage": "https://github.com/lfourage/fcc-urlshortener#readme"
 }
