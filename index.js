@@ -6,11 +6,7 @@ const bodyParser = require("body-parser");
 const URL = require("url").URL;
 const dns = require("dns");
 const mongoose = require("mongoose");
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useCreateIndex: true,
-    useUnifiedTopology: true
-});
+mongoose.connect(process.env.MONGO_URI);
 
 // Basic Configuration
 const port = process.env.PORT || 3000;
@@ -28,8 +24,8 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // Database
 
 const urlSchema = new mongoose.Schema({
-  original_url: String,
-  short_url: Number,
+  original_url: { type: String, required: true },
+  short_url: { type: Number, required: true },
 });
 
 const urlModel = mongoose.model("urlModel", urlSchema);
@@ -37,15 +33,16 @@ const urlModel = mongoose.model("urlModel", urlSchema);
 const generateShortUrl = () => {
   let shortURL = Math.floor(Math.random() * 10000);
 
-  while (urlModel.exists({ short_url: shortURL }))
-    shortURL = Math.floor(Math.random() * 10000);
+  urlModel.exists({ short_url: shortURL }).then((result) => {
+    return result ? generateShortUrl() : shortURL;
+  });
   return shortURL;
 };
 
 app.post("/api/shorturl/", (req, res) => {
   const originalURL = req.body.url;
-  const shortURL = generateShortUrl();
   let urlObject;
+  urlModel.findOneAndDelete({ original_url: originalURL });
 
   try {
     urlObject = new URL(originalURL);
@@ -56,24 +53,34 @@ app.post("/api/shorturl/", (req, res) => {
   dns.lookup(urlObject.hostname, (err) => {
     if (err) res.json({ error: "Invalid Hostname" });
 
-    if (!urlModel.exists({ original_url: originalURL })) {
-      const newUrlModel = new urlModel({
-        original_url: originalURL,
-        short_url: shortURL,
-      });
+    urlModel
+      .findOne({ original_url: originalURL, short_url: { $exists: true } })
+      .then((data) => {
+        if (!data) {
+          const shortURL = generateShortUrl();
+          const newUrlModel = new urlModel({
+            original_url: originalURL,
+            short_url: shortURL,
+          });
 
-      newUrlModel.save((err, data) => {
-        if (err) console.error(err);
-        done(null, data);
+          newUrlModel.save();
+          res.json({ original_url: originalURL, short_url: shortURL });
+        } else {
+          res.json({ original_url: originalURL, short_url: data.short_url });
+        }
       });
-    }
-    res.json({ original_url: originalURL, short_url: shortURL });
   });
 });
 
 // Your first API endpoint
-app.get("/api/shorturl/:url", function (req, res) {
-  const url = req.params.url;
+//app.get("/", () => {urlModel.deleteMany({})})
+app.get("/api/shorturl/:shortURL", (req, res) => {
+  const shortURL = req.params.shortURL;
+
+  urlModel.findOne({ short_url: Number(shortURL) }).then((data) => {
+    if (!data) res.json({ error: "No short URL found for the given input" });
+    else res.redirect(data.original_url);
+  });
 });
 
 app.listen(port, function () {
