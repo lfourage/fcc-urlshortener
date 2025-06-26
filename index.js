@@ -42,16 +42,19 @@ const generateShortUrl = () => {
 app.post("/api/shorturl/", (req, res) => {
   const originalURL = req.body.url;
   let urlObject;
-  urlModel.findOneAndDelete({ original_url: originalURL });
 
   try {
     urlObject = new URL(originalURL);
   } catch (err) {
-    res.json({ error: "Invalid URL" });
+    res.json({ error: "invalid url" });
+    return ;
   }
 
   dns.lookup(urlObject.hostname, (err) => {
-    if (err) res.json({ error: "Invalid Hostname" });
+    if (err) {
+      res.json({ error: "Invalid url" });
+      return ;
+    }
 
     urlModel
       .findOne({ original_url: originalURL, short_url: { $exists: true } })
